@@ -1,0 +1,13 @@
+{
+    "name": "ProxTube",
+    "description": "A Simple Hack Proxy",
+    "logo": "https://scalingo.com/logo.svg",
+    "repository": "https://github.com/zaidzeki/proxtube",
+    "website": "https://scalingo.com",
+    "formation": {
+      "web": {
+        "amount": 1,
+        "size": "S"
+      }
+    }
+  }
