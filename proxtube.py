@@ -4,13 +4,11 @@ import json
 import logging
 import os
 import io
-os.system('pip install flask requests pycryptodome pytube')
 from flask import Flask, Response
 import requests
 from pytube import YouTube
 from Crypto.Cipher import AES
 
-logging.basicConfig(filename="proxtube.log", level=logging.DEBUG, force=True)
 app = Flask(__name__)
 lastFile = {}
 
