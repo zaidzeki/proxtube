@@ -9,6 +9,32 @@ import requests
 from pytube import YouTube
 from Crypto.Cipher import AES
 
+""""Windowed Buffer"""
+
+class WindowedBuffer(io.BytesIO):
+    def __init__(self, *args, **kwargs):
+        self.start = int(kwargs.get('start', 0))
+        self.end = int(kwargs.get('end', 10000000000000))
+        self.count = int(kwargs.get('count', 0))
+        kwargs = {k:v for k, v in kwargs.items() if k not in ['start', 'end', 'count']}
+        super().__init__(*args, **kwargs)
+
+    def write(self, data):
+        new_count = self.count + len(data)
+        if new_count <= self.start:
+            print("Skipping")
+        elif self.count > self.end:
+            pass
+        else:
+            chunk = data[self.start-new_count:]
+            print(len(data), new_count-self.end)
+            if new_count > self.end:
+                chunk = chunk[:self.end-new_count]
+            super().write(chunk)
+        self.count = new_count
+
+
+logging.basicConfig(filename="proxtube.log", level=logging.DEBUG, force=True)
 app = Flask(__name__)
 lastFile = {}
 
@@ -66,6 +92,21 @@ def partial(path, start, end):
     data = requests.get(path, allow_redirects=True).content[start:end]
     data = encrypt(b'0'*16, data)
     return Response(data, mimetype='image/jpg')
+
+@app.route('/<path>/<start>/<end>/partial2.jpg')
+def partial2(path, start, end):
+    start = int(start)
+    end = int(end)
+    path = bytes(path, 'utf-8')
+    path = base64.urlsafe_b64decode(path)
+    path = decrypt(b'0'*16, path)
+    buffer = WindowedBuffer(start=start, end=end)
+    for chunk in requests.get(path, allow_redirects=True):
+        buffer.write(chunk)
+    data = buffer.getvalue()
+    data = encrypt(b'0'*16, data)
+    return Response(data, mimetype='image/jpg')
+
 
 def excep(resp, e):
     resp['errors'].append(str(e))
@@ -196,6 +237,37 @@ def tubechunk(path, itag, start, end):
         data = data[start:end]
     data = encrypt(b'0'*16, data)
     return Response(data, mimetype='image/jpg')
+
+
+
+@app.route('/<path>/<int:itag>/<int:start>/<int:end>/tubechunk2.jpg')
+def tubechunk2(path, itag, start, end):
+    itag = int(itag)
+    start = int(start)
+    end = int(end)
+    path = bytes(path, 'utf-8')
+    path = base64.urlsafe_b64decode(path)
+    path = decrypt(b'0'*16, path)
+    if lastFile.get('path') == path and lastFile.get('itag') == itag and os.path.exists('tmp.bin'):
+        with open('tmp.bin', 'rb') as fp:
+            fp.read(start)
+            data = fp.read(end-start)
+    else:
+        yt = YouTube(path)
+        data = WindowedBuffer(start=start, end=end)
+        stream = yt.streams.get_by_itag(itag)
+        stream.stream_to_buffer(data)
+        data.seek(0)
+        data = data.read()
+        # if len(data) < 150 * 1000 * 1000:
+            # lastFile['path'] = path
+            # lastFile['itag'] = itag
+            # with open('tmp.bin', 'wb') as fp: fp.write(data)
+    data = encrypt(b'0'*16, data)
+    return Response(data, mimetype='image/jpg')
+
+
+
 
 # curl -H 'Snap-Device-Series: 16' http://api.snapcraft.io/v2/snaps/info/chromium >> chromium.info
 @app.route('/<path>/snap.jpg')
