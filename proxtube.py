@@ -33,8 +33,6 @@ class WindowedBuffer(io.BytesIO):
             super().write(chunk)
         self.count = new_count
 
-
-logging.basicConfig(filename="proxtube.log", level=logging.DEBUG, force=True)
 app = Flask(__name__)
 lastFile = {}
 
